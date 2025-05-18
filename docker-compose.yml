@@ -1,0 +1,26 @@
+services:
+  mqtt-broker:
+    image: eclipse-mosquitto:2.0
+    container_name: mosquitto
+    ports:
+      - "1883:1883"     # MQTT
+      - "9001:9001"     # WebSocket (optional)
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+    restart: unless-stopped
+
+  mqtt-ui:
+    image: terdia07/mqttui:v1.3.0
+    platform: linux/amd64
+    container_name: mqtt-web-ui
+    ports:
+      - "8080:5000"
+    environment:
+      - MQTT_BROKER=mqtt-broker
+      - MQTT_PORT=1883
+      - DEBUG=False
+      - PORT=5000
+    depends_on:
+      - mqtt-broker
+    restart: unless-stopped
