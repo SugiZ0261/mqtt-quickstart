@@ -14,57 +14,104 @@
     <div class="container mx-auto p-4">
         <h1 class="text-4xl font-bold mb-6">MQTT Web Interface</h1>
         
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="lg:col-span-2">
-                <div class="bg-gray-800 rounded-lg shadow-md p-6 mb-6">
-                    <h2 class="text-2xl font-semibold mb-4">Message Flow</h2>
-                    <div id="network-visualization" class="h-96"></div>
+        <!-- ★ タブ切り替えナビゲーション -->
+        <nav class="mb-6 flex space-x-4">
+            <button id="tab-live"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white"
+                    >Live</button>
+            <button id="tab-history"
+                    class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white"
+                    >History</button>
+        </nav>
+
+        <!-- Live パネル -->
+        <div id="live-panel">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2">
+                    <div class="bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+                        <h2 class="text-2xl font-semibold mb-4">Message Flow</h2>
+                        <div id="network-visualization" class="h-96"></div>
+                    </div>
+
+                    <div class="bg-gray-800 rounded-lg shadow-md p-6">
+                        <h2 class="text-2xl font-semibold mb-4">Message Rate</h2>
+                        <canvas id="messageChart"></canvas>
+                    </div>
                 </div>
-                
-                <div class="bg-gray-800 rounded-lg shadow-md p-6">
-                    <h2 class="text-2xl font-semibold mb-4">Message Rate</h2>
-                    <canvas id="messageChart"></canvas>
+
+                <div class="space-y-6">
+                    <div class="bg-gray-800 rounded-lg shadow-md p-6">
+                        <h2 class="text-2xl font-semibold mb-4">Publish Message</h2>
+                        <form id="publish-form" class="space-y-4">
+                            <div>
+                                <label for="topic" class="block text-sm font-medium text-gray-300">Topic</label>
+                                <input type="text" id="topic" name="topic"
+                                       class="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white">
+                            </div>
+                            <div>
+                                <label for="message" class="block text-sm font-medium text-gray-300">Message</label>
+                                <textarea id="message" name="message" rows="3"
+                                          class="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white"></textarea>
+                            </div>
+                            <button type="submit"
+                                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Publish</button>
+                        </form>
+                    </div>
+
+                    <div class="bg-gray-800 rounded-lg shadow-md p-6">
+                        <h2 class="text-2xl font-semibold mb-4">Stats</h2>
+                        <p>Active Connections: <span id="connection-count" class="font-bold">0</span></p>
+                        <p>Total Topics: <span id="topic-count" class="font-bold">0</span></p>
+                        <p>Total Messages: <span id="message-count" class="font-bold">0</span></p>
+                    </div>
+
+                    <div class="bg-gray-800 rounded-lg shadow-md p-6">
+                        <h2 class="text-2xl font-semibold mb-4">Topic Filter</h2>
+                        <select id="topic-filter"
+                                class="block w-full mt-1 rounded-md bg-gray-700 border-gray-600 text-white">
+                            <option value="all">All Topics</option>
+                        </select>
+                    </div>
                 </div>
             </div>
-            
-            <div class="space-y-6">
-                <div class="bg-gray-800 rounded-lg shadow-md p-6">
-                    <h2 class="text-2xl font-semibold mb-4">Publish Message</h2>
-                    <form id="publish-form" class="space-y-4">
-                        <div>
-                            <label for="topic" class="block text-sm font-medium text-gray-300">Topic</label>
-                            <input type="text" id="topic" name="topic" class="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white">
-                        </div>
-                        <div>
-                            <label for="message" class="block text-sm font-medium text-gray-300">Message</label>
-                            <textarea id="message" name="message" rows="3" class="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white"></textarea>
-                        </div>
-                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Publish</button>
-                    </form>
-                </div>
-                
-                <div class="bg-gray-800 rounded-lg shadow-md p-6">
-                    <h2 class="text-2xl font-semibold mb-4">Stats</h2>
-                    <p>Active Connections: <span id="connection-count" class="font-bold">0</span></p>
-                    <p>Total Topics: <span id="topic-count" class="font-bold">0</span></p>
-                    <p>Total Messages: <span id="message-count" class="font-bold">0</span></p>
-                </div>
-                
-                <div class="bg-gray-800 rounded-lg shadow-md p-6">
-                    <h2 class="text-2xl font-semibold mb-4">Topic Filter</h2>
-                    <select id="topic-filter" class="block w-full mt-1 rounded-md bg-gray-700 border-gray-600 text-white">
-                        <option value="all">All Topics</option>
-                    </select>
-                </div>
+
+            <div class="mt-6 bg-gray-800 rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-semibold mb-4">Last Messages</h2>
+                <div id="message-list" class="h-64 overflow-y-auto space-y-2"></div>
             </div>
         </div>
-        
-        <div class="mt-6 bg-gray-800 rounded-lg shadow-md p-6">
-            <h2 class="text-2xl font-semibold mb-4">Last Messages</h2>
-            <div id="message-list" class="h-64 overflow-y-auto space-y-2"></div>
+
+        <!-- History パネル（初期は非表示） -->
+        <div id="history-panel" style="display:none;">
+            <div class="bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-semibold">Message History</h2>
+                    <div class="space-x-2">
+                        <button id="btn-refresh"
+                                class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">再取得</button>
+                        <button id="btn-download"
+                                class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">JSONダウンロード</button>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-800 rounded-lg shadow-md p-6">
+                <table class="min-w-full table-auto">
+                    <thead>
+                        <tr>
+                            <th class="px-2 py-1 border">Timestamp</th>
+                            <th class="px-2 py-1 border">Topic</th>
+                            <th class="px-2 py-1 border">Payload</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table-body">
+                        <!-- JavaScript でここに <tr> を追加 -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script src="{{ url_for('static', filename='history.js') }}"></script>
 </body>
 </html>

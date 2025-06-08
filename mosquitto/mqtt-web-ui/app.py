@@ -9,6 +9,7 @@ from debug_bar import debug_bar, debug_bar_middleware
 import logging
 import time
 from dotenv import load_dotenv
+import requests
 from logging.handlers import RotatingFileHandler
 from werkzeug.serving import run_simple
 
@@ -25,6 +26,7 @@ MQTT_USERNAME = os.getenv('MQTT_USERNAME')
 MQTT_PASSWORD = os.getenv('MQTT_PASSWORD')
 MQTT_KEEPALIVE = int(os.getenv('MQTT_KEEPALIVE', 60))
 MQTT_VERSION = os.getenv('MQTT_VERSION', '3.1.1')
+API_SERVER = os.getenv('API_SERVER', 'http://api-server:3000')
 
 # Set up logging
 log_level = logging.DEBUG if DEBUG else logging.INFO
@@ -227,37 +229,73 @@ def record_client_performance():
 def get_version():
     return jsonify({'version': __version__})
 
-if __name__ == '__main__' or __name__ == 'app':
+@app.route('/api/logs')
+def proxy_get_logs():
+    # クエリ文字列をまるごと FastAPI サーバへ転送
+    q = request.query_string.decode()
+    url = f"{API_SERVER}/logs"
+    if q:
+        url = f"{url}?{q}"
+    resp = requests.get(url)
+    return (resp.content, resp.status_code, resp.headers.items())
+
+@app.route('/api/logs/download')
+def proxy_download_logs():
+    url = f"{API_SERVER}/logs/download"
+    resp = requests.get(url, stream=True)
+    headers = {
+        'Content-Type': resp.headers.get('Content-Type', 'application/octet-stream'),
+        'Content-Disposition': resp.headers.get('Content-Disposition', 'attachment; filename=messages.jsonl')
+    }
+    return (resp.iter_content(chunk_size=8192), resp.status_code, headers)
+
+
+def connect_mqtt():
     if mqtt_username and mqtt_password:
         mqtt_client.username_pw_set(mqtt_username, mqtt_password)
+        logging.info("MQTT credentials set")
+    else:
+        logging.info("No MQTT credentials provided")
     
-    def connect_mqtt():
-        if mqtt_username and mqtt_password:
-            mqtt_client.username_pw_set(mqtt_username, mqtt_password)
-            logging.info("MQTT credentials set")
-        else:
-            logging.info("No MQTT credentials provided")
-        
-        debug_bar.record('mqtt', 'connection_attempt', f"Connecting to {mqtt_broker}:{mqtt_port}")
-        debug_bar.record('mqtt', 'broker', mqtt_broker)
-        debug_bar.record('mqtt', 'port', mqtt_port)
-        debug_bar.record('mqtt', 'username', mqtt_username if mqtt_username else 'Not set')
-        debug_bar.record('mqtt', 'password', 'Set' if mqtt_password else 'Not set')
-        debug_bar.record('mqtt', 'protocol', f'MQTT v{mqtt_version}')
-        
-        logging.info(f"Attempting to connect to MQTT broker at {mqtt_broker}:{mqtt_port}")
-        
-        try:
-            mqtt_client.connect(mqtt_broker, mqtt_port, mqtt_keepalive)
-            mqtt_client.loop_start()
-        except Exception as e:
-            error_message = f"Failed to connect to MQTT broker: {str(e)}"
-            debug_bar.record('mqtt', 'connection_error', error_message)
-            debug_bar.record('mqtt', 'connection_status', 'Failed')
-            error_log.append(error_message)
-            logging.error(error_message)
-            time.sleep(5)
-            connect_mqtt()  # Retry connection
-            debug_bar.record('mqtt', 'connection_status', 'Failed')
+    debug_bar.record('mqtt', 'connection_attempt', f"Connecting to {mqtt_broker}:{mqtt_port}")
+    debug_bar.record('mqtt', 'broker', mqtt_broker)
+    debug_bar.record('mqtt', 'port', mqtt_port)
+    debug_bar.record('mqtt', 'username', mqtt_username if mqtt_username else 'Not set')
+    debug_bar.record('mqtt', 'password', 'Set' if mqtt_password else 'Not set')
+    debug_bar.record('mqtt', 'protocol', f'MQTT v{mqtt_version}')
     
+    logging.info(f"Attempting to connect to MQTT broker at {mqtt_broker}:{mqtt_port}")
+    
+    try:
+        mqtt_client.connect(mqtt_broker, mqtt_port, mqtt_keepalive)
+        mqtt_client.loop_start()
+    except Exception as e:
+        error_message = f"Failed to connect to MQTT broker: {str(e)}"
+        debug_bar.record('mqtt', 'connection_error', error_message)
+        debug_bar.record('mqtt', 'connection_status', 'Failed')
+        error_log.append(error_message)
+        logging.error(error_message)
+        time.sleep(5)
+        connect_mqtt()  # Retry connection
+        debug_bar.record('mqtt', 'connection_status', 'Failed')
+
+
+def main():
+    # ① MQTT ブローカー接続を開始
+    if mqtt_username and mqtt_password:
+        mqtt_client.username_pw_set(mqtt_username, mqtt_password)
     connect_mqtt()
+
+    # ② Socket.IO サーバーを１回だけ立ち上げる
+    #    use_reloader=False で自動リロードを切り、無限リスタートを防止
+    socketio.run(
+        app,
+        host=HOST,
+        port=PORT,
+        debug=DEBUG,
+        use_reloader=False
+    )
+
+
+if __name__ == '__main__':
+    main()
