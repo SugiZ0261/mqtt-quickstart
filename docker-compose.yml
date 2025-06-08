@@ -12,7 +12,8 @@ services:
 
   mqtt-ui:
     # image: terdia07/mqttui:v1.3.0
-    build: ./mosquitto/mqtt-web-ui
+    build: 
+      context: ./mosquitto/mqtt-web-ui
     platform: linux/amd64
     container_name: mqtt-web-ui
     ports:
@@ -25,7 +26,9 @@ services:
     depends_on:
       - mqtt-broker
     restart: unless-stopped
-  
+    entrypoint: ["python", "-u", "app.py"]
+    command: []
+
   mqtt-archiver:
     build: ./mqtt-archiver
     container_name: mqtt-archiver
