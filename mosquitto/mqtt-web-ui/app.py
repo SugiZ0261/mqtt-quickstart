@@ -1,6 +1,6 @@
 __version__ = "1.3.0"
 
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, Response
 from flask_socketio import SocketIO, emit
 import paho.mqtt.client as mqtt
 from datetime import datetime
@@ -242,12 +242,28 @@ def proxy_get_logs():
 @app.route('/api/logs/download')
 def proxy_download_logs():
     url = f"{API_SERVER}/logs/download"
-    resp = requests.get(url, stream=True)
-    headers = {
-        'Content-Type': resp.headers.get('Content-Type', 'application/octet-stream'),
-        'Content-Disposition': resp.headers.get('Content-Disposition', 'attachment; filename=messages.jsonl')
-    }
-    return (resp.iter_content(chunk_size=8192), resp.status_code, headers)
+    r = requests.get(url, stream=True)
+    if not r.ok:
+        return (r.text, r.status_code, r.headers.items())
+
+    # チャンクをそのまま流すジェネレータ
+    def generate():
+        for chunk in r.iter_content(chunk_size=8192):
+            if chunk:
+                yield chunk
+
+    # Flask の Response で返却
+    resp = Response(
+        generate(),
+        status=r.status_code,
+        mimetype=r.headers.get('Content-Type', 'application/octet-stream')
+    )
+    # Content-Disposition もちゃんと渡す
+    resp.headers['Content-Disposition'] = r.headers.get(
+        'Content-Disposition',
+        'attachment; filename=messages.jsonl'
+    )
+    return resp
 
 
 def connect_mqtt():
