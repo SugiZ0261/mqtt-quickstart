@@ -24,3 +24,17 @@ services:
     depends_on:
       - mqtt-broker
     restart: unless-stopped
+  
+  mqtt-archiver:
+    build: ./mqtt-archiver
+    container_name: mqtt-archiver
+    depends_on:
+      - mqtt-broker
+    volumes:
+      - ./data:/data          # JSONL 出力先をホストにマウント
+    environment:
+      - MQTT_BROKER=mqtt-broker
+      - MQTT_PORT=1883
+      - MQTT_TOPIC=#         # 必要に応じて特定トピックに絞れる
+      - OUTPUT_FILE=/data/messages.jsonl
+    restart: unless-stopped
