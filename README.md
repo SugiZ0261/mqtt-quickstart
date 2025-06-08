@@ -2,6 +2,8 @@
 
 * 実行手順
 
-  * `docker-compose build -d`を実行
+  * `colima start`を実行
+
+  * `docker-compose up -d`を実行
 
   * localhost:8080にアクセス
