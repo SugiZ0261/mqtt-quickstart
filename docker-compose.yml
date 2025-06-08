@@ -38,3 +38,16 @@ services:
       - MQTT_TOPIC=#         # 必要に応じて特定トピックに絞れる
       - OUTPUT_FILE=/data/messages.jsonl
     restart: unless-stopped
+
+  api-server:
+    build: ./api-server
+    container_name: mqtt-api
+    ports:
+      - "3000:3000"           # ホスト3000→コンテナ3000
+    volumes:
+      - ./data:/data:ro       # mqtt-archiver が書き出す ./data/messages.jsonl を読み取り専用でマウント
+    environment:
+      - LOG_FILE=/data/messages.jsonl
+    depends_on:
+      - mqtt-archiver
+    restart: unless-stopped
